@@ -55,8 +55,6 @@ def fetch_quote():
 	try:
 		response = requests.get(url)
 
-		print(response.json())
-
 		return f'"{response.json()[0]["q"]}" —{response.json()[0]["a"]}'
 	except Exception as e:
 		print('Error:', e)
@@ -93,11 +91,11 @@ def print_daily_paper():
 		daily_data["temperature_2m_min"] = daily_temperature_2m_min
 		daily_data["precipitation_probability_max"] = daily_precipitation_probability_max
 
-
+		quote = fetch_quote()
 
 		p.textln(create_formatted_date())
 		p.textln()
-		p.textln(fetch_quote())
+		p.textln(quote)
 		p.textln()
 		p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
 		p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
