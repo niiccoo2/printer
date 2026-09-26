@@ -54,9 +54,8 @@ def fetch_quote():
 
 	try:
 		response = requests.get(url)
-		nice_response = json.loads(response.json())
 
-		return f'"{nice_response["q"]}" —{nice_response["a"]}'
+		return f'"{response[0]}" —{response[1]}'
 	except Exception as e:
 		print('Error:', e)
 		return None
