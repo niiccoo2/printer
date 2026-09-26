@@ -55,6 +55,8 @@ def fetch_quote():
 	try:
 		response = requests.get(url)
 
+		print(response.json())
+
 		return f'"{response.json()[0]}" —{response.json()[1]}'
 	except Exception as e:
 		print('Error:', e)
