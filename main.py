@@ -1,3 +1,7 @@
+import os
+os.makedirs(os.path.expanduser("~/.cache/escpos"), exist_ok=True)
+os.environ.setdefault("ESCPOS_CAPABILITIES_PICKLE_DIR", os.path.expanduser("~/.cache/escpos"))
+
 from escpos.printer import Usb
 import openmeteo_requests
 import pandas as pd
@@ -30,7 +34,7 @@ params = {
 	"precipitation_unit": "inch",
 }
 
-printed_days = []
+last_printed = None
 
 def create_formatted_date():
 	date = datetime.datetime.now()
@@ -84,7 +88,7 @@ def print_daily_paper():
 while True:
 	now = datetime.datetime.now()
 
-	if now.date() not in printed_days and now.hour >= 6: # I understand that this is kinda a bad way to do it, but it works...
+	if now.date() != last_printed and now.hour >= 6: # I understand that this is kinda a bad way to do it, but it works...
 		print_daily_paper()
-		printed_days.append(now.date())
+		last_printed = now.date()
 	time.sleep(60)
