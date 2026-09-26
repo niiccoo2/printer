@@ -57,7 +57,7 @@ def fetch_quote():
 
 		print(response.json())
 
-		return f'"{response.json()[0]}" —{response.json()[1]}'
+		return f'"{response.json()[0]["q"]}" —{response.json()[0]["a"]}'
 	except Exception as e:
 		print('Error:', e)
 		return None
