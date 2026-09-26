@@ -36,6 +36,9 @@ params = {
 
 last_printed = None
 
+def create_printer_object():
+	return Usb(0x04b8, 0x0e28, 0, profile="TM-T20II")
+
 def create_formatted_date():
 	date = datetime.datetime.now()
     
@@ -45,8 +48,9 @@ def create_formatted_date():
 	return date.strftime(f"{''.join(day_name_list)}, {numbers[date.day]} %B")
 
 def print_daily_paper():
+	print("Printing daily paper!")
 
-	p = Usb(0x04b8, 0x0e28, 0, profile="TM-T20II")
+	p = create_printer_object()
 
 	try:
 		response = openmeteo.weather_api(url, params = params)[0]
@@ -84,6 +88,13 @@ def print_daily_paper():
 		p.cut()
 	finally:
 		p.close()
+
+def init_printer():
+	p = create_printer_object()
+
+	p.set_with_default(align="center")
+
+init_printer()
 
 while True:
 	now = datetime.datetime.now()
