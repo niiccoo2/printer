@@ -94,6 +94,8 @@ def init_printer():
 
 	p.set_with_default(align="center")
 
+	p.close()
+
 init_printer()
 
 while True:
