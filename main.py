@@ -6,7 +6,7 @@ from retry_requests import retry
 import datetime
 import locale
 
-locale.setlocale(locale.LC_TIME, "it_IT")
+locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
 
 
 
