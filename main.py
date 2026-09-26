@@ -5,6 +5,7 @@ import requests_cache
 from retry_requests import retry
 import datetime
 import locale
+import time
 
 locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
 
@@ -41,44 +42,49 @@ def create_formatted_date():
 
 def print_daily_paper():
 
-	response = openmeteo.weather_api(url, params = params)[0]
-
-	# Process daily data. The order of variables needs to be the same as requested.
-	daily = response.Daily()
-	daily_sunrise = daily.Variables(0).ValuesInt64AsNumpy()
-	daily_sunset = daily.Variables(1).ValuesInt64AsNumpy()
-	daily_temperature_2m_max = daily.Variables(2).ValuesAsNumpy()
-	daily_temperature_2m_min = daily.Variables(3).ValuesAsNumpy()
-	daily_precipitation_probability_max = daily.Variables(4).ValuesAsNumpy()
-
-	daily_data = {
-		"date": pd.date_range(
-			start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
-			end =  pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
-			freq = pd.Timedelta(seconds = daily.Interval()),
-			inclusive = "left"
-		).tz_convert(response.Timezone().decode())
-	}
-
-	daily_data["sunrise"] = pd.to_datetime(daily_sunrise, unit = "s", utc = True).tz_convert(response.Timezone().decode())
-	daily_data["sunset"] = pd.to_datetime(daily_sunset, unit = "s", utc = True).tz_convert(response.Timezone().decode())
-	daily_data["temperature_2m_max"] = daily_temperature_2m_max
-	daily_data["temperature_2m_min"] = daily_temperature_2m_min
-	daily_data["precipitation_probability_max"] = daily_precipitation_probability_max
-
-
 	p = Usb(0x04b8, 0x0e28, 0, profile="TM-T20II")
 
-	p.textln(create_formatted_date())
-	p.textln()
-	p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
-	p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
-	p.text(f"Precipitation: {round(daily_data["precipitation_probability_max"][0])}%")
-	p.cut()
+	try:
+		response = openmeteo.weather_api(url, params = params)[0]
+
+		# Process daily data. The order of variables needs to be the same as requested.
+		daily = response.Daily()
+		daily_sunrise = daily.Variables(0).ValuesInt64AsNumpy()
+		daily_sunset = daily.Variables(1).ValuesInt64AsNumpy()
+		daily_temperature_2m_max = daily.Variables(2).ValuesAsNumpy()
+		daily_temperature_2m_min = daily.Variables(3).ValuesAsNumpy()
+		daily_precipitation_probability_max = daily.Variables(4).ValuesAsNumpy()
+
+		daily_data = {
+			"date": pd.date_range(
+				start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
+				end =  pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
+				freq = pd.Timedelta(seconds = daily.Interval()),
+				inclusive = "left"
+			).tz_convert(response.Timezone().decode())
+		}
+
+		daily_data["sunrise"] = pd.to_datetime(daily_sunrise, unit = "s", utc = True).tz_convert(response.Timezone().decode())
+		daily_data["sunset"] = pd.to_datetime(daily_sunset, unit = "s", utc = True).tz_convert(response.Timezone().decode())
+		daily_data["temperature_2m_max"] = daily_temperature_2m_max
+		daily_data["temperature_2m_min"] = daily_temperature_2m_min
+		daily_data["precipitation_probability_max"] = daily_precipitation_probability_max
+
+
+
+		p.textln(create_formatted_date())
+		p.textln()
+		p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
+		p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
+		p.text(f"Precipitation: {round(daily_data["precipitation_probability_max"][0])}%")
+		p.cut()
+	finally:
+		p.close()
 
 while True:
-	current_time = datetime.datetime.now()
+	now = datetime.datetime.now()
 
-	if current_time.date not in printed_days and current_time.hour >= 6: # I understand that this is kinda a bad way to do it, but it works...
+	if now.date() not in printed_days and now.hour >= 6: # I understand that this is kinda a bad way to do it, but it works...
 		print_daily_paper()
-		printed_days.append(current_time.date)
+		printed_days.append(now.date())
+	time.sleep(60)
