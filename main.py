@@ -6,10 +6,12 @@ from escpos.printer import Usb
 import openmeteo_requests
 import pandas as pd
 import requests_cache
+import requests
 from retry_requests import retry
 import datetime
 import locale
 import time
+import json
 
 locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
 
@@ -47,6 +49,18 @@ def create_formatted_date():
 
 	return date.strftime(f"{''.join(day_name_list)}, {numbers[date.day]} %B")
 
+def fetch_quote():
+	url = 'https://zenquotes.io/api/today'
+
+	try:
+		response = requests.get(url)
+		nice_response = json.loads(response)
+
+		return f'"{nice_response["q"]}" —{nice_response["a"]}'
+	except Exception as e:
+		print('Error:', e)
+		return None
+
 def print_daily_paper():
 	print("Printing daily paper!")
 
@@ -81,6 +95,8 @@ def print_daily_paper():
 
 
 		p.textln(create_formatted_date())
+		p.textln()
+		p.textln(fetch_quote())
 		p.textln()
 		p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
 		p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
