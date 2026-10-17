@@ -12,6 +12,8 @@ import datetime
 import locale
 import time
 import json
+import cv2
+import numpy as np
 
 locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
 
@@ -77,6 +79,16 @@ def fetch_comic():
 	img_data = requests.get(image_url).content
 	with open('comic.png', 'wb') as handler:
 		handler.write(img_data)
+
+	img = cv2.imread("./comic.png")
+	h, w = img.shape[:2]  # height, width
+	ctr = (w // 2, h // 2)
+	ang = 90
+	scl = 1.0
+
+	mat = cv2.getRotationMatrix2D(ctr, ang, scl)
+	rot = cv2.warpAffine(img, mat, (w, h))
+	cv2.imwrite('comic.png', rot)
 
 	return True
 
