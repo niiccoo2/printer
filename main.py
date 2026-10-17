@@ -1,159 +1,201 @@
+import datetime
+import json
+import locale
 import os
-os.makedirs(os.path.expanduser("~/.cache/escpos"), exist_ok=True)
-os.environ.setdefault("ESCPOS_CAPABILITIES_PICKLE_DIR", os.path.expanduser("~/.cache/escpos"))
-
+import time
 from escpos.printer import Usb
 import openmeteo_requests
 import pandas as pd
-import requests_cache
+from PIL import Image
 import requests
+import requests_cache
 from retry_requests import retry
-import datetime
-import locale
-import time
-import json
-import cv2
-import numpy as np
 
-locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
+os.makedirs(os.path.expanduser("~/.cache/escpos"), exist_ok=True)
+os.environ.setdefault(
+    "ESCPOS_CAPABILITIES_PICKLE_DIR", os.path.expanduser("~/.cache/escpos")
+)
 
+try:
+  locale.setlocale(locale.LC_TIME, "it_IT.UTF-8")
+except locale.Error:
+  locale.setlocale(locale.LC_TIME, "")
 
+numbers = {
+    1: "prima",
+    2: "due",
+    3: "tre",
+    4: "quattro",
+    5: "cinque",
+    6: "sei",
+    7: "sette",
+    8: "otto",
+    9: "nove",
+    10: "dieci",
+    11: "undici",
+    12: "dodici",
+    13: "tredici",
+    14: "quattordici",
+    15: "quindici",
+    16: "sedici",
+    17: "diciassette",
+    18: "diciotto",
+    19: "diciannove",
+    20: "venti",
+    21: "ventuno",
+    22: "venidue",
+    23: "venitre",
+    24: "ventiquattro",
+    25: "venticinque",
+    26: "ventisei",
+    27: "ventisette",
+    28: "ventotto",
+    29: "ventinove",
+    30: "trenta",
+    31: "trentuno",
+}
 
-numbers = {1:"prima", 2:"due", 3:"tre", 4:"quattro", 5:"cinque", 6:"sei", 7:"sette", 8:"otto", 9:"nove", 10:"dieci", 11:"undici", 12:"dodici", 13:"tredici", 14:"quattordici", 15:"quindici", 16:"sedici", 17:"diciassette", 18:"diciotto", 19:"diciannove", 20:"venti", 21:"ventuno", 22:"venidue", 23:"venitre", 24:"ventiquattro", 25:"venticinque", 26:"ventisei", 27:"ventisette", 28:"ventotto", 29:"ventinove", 30:"trenta", 31:"trentuno"}
-
-# Setup the Open-Meteo API client with cache and retry on error
-cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-openmeteo = openmeteo_requests.Client(session = retry_session)
+cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
+retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+openmeteo = openmeteo_requests.Client(session=retry_session)
 
 url = "https://api.open-meteo.com/v1/forecast"
 params = {
-	"latitude": 42.3584,
-	"longitude": -71.0598,
-	"daily": ["sunrise", "sunset", "temperature_2m_max", "temperature_2m_min", "precipitation_probability_max"],
-	"timezone": "auto",
-	"forecast_days": 1,
-	"wind_speed_unit": "mph",
-	"temperature_unit": "fahrenheit",
-	"precipitation_unit": "inch",
+    "latitude": 42.3584,
+    "longitude": -71.0598,
+    "daily": [
+        "sunrise",
+        "sunset",
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "precipitation_probability_max",
+    ],
+    "timezone": "auto",
+    "forecast_days": 1,
+    "wind_speed_unit": "mph",
+    "temperature_unit": "fahrenheit",
+    "precipitation_unit": "inch",
 }
 
 last_printed = None
 
+
 def create_printer_object():
-	return Usb(0x04b8, 0x0e28, 0, profile="TM-T20II")
+  return Usb(0x04B8, 0x0E28, 0, profile="TM-T20II")
+
 
 def create_formatted_date():
-	date = datetime.datetime.now()
-    
-	day_name_list = list(date.strftime("%A"))
-	day_name_list[0] = day_name_list[0].upper()
+  date = datetime.datetime.now()
+  day_name_list = list(date.strftime("%A"))
+  day_name_list[0] = day_name_list[0].upper()
+  return date.strftime(f"{''.join(day_name_list)}, {numbers[date.day]} %B")
 
-	return date.strftime(f"{''.join(day_name_list)}, {numbers[date.day]} %B")
 
 def fetch_quote():
-	url = 'https://zenquotes.io/api/today'
+  quote_url = "https://zenquotes.io/api/today"
+  try:
+    response = requests.get(quote_url)
+    data = response.json()[0]
+    return f'"{data["q"]}" —{data["a"]}'
+  except Exception as e:
+    print("Error fetching quote:", e)
+    return None
 
-	try:
-		response = requests.get(url)
-
-		return f'"{response.json()[0]["q"]}" —{response.json()[0]["a"]}'
-	except Exception as e:
-		print('Error:', e)
-		return None
 
 def fetch_comic():
-	url = 'https://xkcd.com/info.0.json'
+  comic_url = "https://xkcd.com/info.0.json"
+  try:
+    response = requests.get(comic_url)
+    image_url = response.json()["img"]
+  except Exception as e:
+    print("Error (with comic):", e)
+    return False
 
-	try:
-		response = requests.get(url)
-		print(response)
+  img_data = requests.get(image_url).content
+  with open("comic.png", "wb") as handler:
+    handler.write(img_data)
 
-		image_url = response.json()["img"]
-		print(image_url)
-	except Exception as e:
-		print('Error (with comic):', e)
-		return None
+  # Rotate image 90 degrees using Pillow instead of OpenCV
+  with Image.open("comic.png") as img:
+    rotated = img.transpose(Image.ROTATE_270)
+    rotated.save("comic.png")
 
-	
-	img_data = requests.get(image_url).content
-	with open('comic.png', 'wb') as handler:
-		handler.write(img_data)
+  return True
 
-	img = cv2.imread("./comic.png")
-	h, w = img.shape[:2]  # height, width
-	ctr = (w // 2, h // 2)
-	ang = 90
-	scl = 1.0
-
-	mat = cv2.getRotationMatrix2D(ctr, ang, scl)
-	rot = cv2.warpAffine(img, mat, (w, h))
-	cv2.imwrite('comic.png', rot)
-
-	return True
 
 def print_daily_paper():
-	print("Printing daily paper!")
+  print("Printing daily paper!")
+  p = create_printer_object()
 
-	p = create_printer_object()
+  try:
+    response = openmeteo.weather_api(url, params=params)[0]
+    daily = response.Daily()
 
-	try:
-		response = openmeteo.weather_api(url, params = params)[0]
+    daily_sunrise = daily.Variables(0).ValuesInt64AsNumpy()
+    daily_sunset = daily.Variables(1).Variables if False else daily.Variables(1).ValuesInt64AsNumpy()
+    daily_temperature_2m_max = daily.Variables(2).ValuesAsNumpy()
+    daily_temperature_2m_min = daily.Variables(3).ValuesAsNumpy()
+    daily_precipitation_probability_max = daily.Variables(4).ValuesAsNumpy()
 
-		# Process daily data. The order of variables needs to be the same as requested.
-		daily = response.Daily()
-		daily_sunrise = daily.Variables(0).ValuesInt64AsNumpy()
-		daily_sunset = daily.Variables(1).ValuesInt64AsNumpy()
-		daily_temperature_2m_max = daily.Variables(2).ValuesAsNumpy()
-		daily_temperature_2m_min = daily.Variables(3).ValuesAsNumpy()
-		daily_precipitation_probability_max = daily.Variables(4).ValuesAsNumpy()
+    daily_data = {
+        "date": pd.date_range(
+            start=pd.to_datetime(daily.Time(), unit="s", utc=True),
+            end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
+            freq=pd.Timedelta(seconds=daily.Interval()),
+            inclusive="left",
+        ).tz_convert(response.Timezone().decode())
+    }
 
-		daily_data = {
-			"date": pd.date_range(
-				start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
-				end =  pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
-				freq = pd.Timedelta(seconds = daily.Interval()),
-				inclusive = "left"
-			).tz_convert(response.Timezone().decode())
-		}
+    daily_data["sunrise"] = pd.to_datetime(
+        daily_sunrise, unit="s", utc=True
+    ).tz_convert(response.Timezone().decode())
+    daily_data["sunset"] = pd.to_datetime(
+        daily_sunset, unit="s", utc=True
+    ).tz_convert(response.Timezone().decode())
+    daily_data["temperature_2m_max"] = daily_temperature_2m_max
+    daily_data["temperature_2m_min"] = daily_temperature_2m_min
+    daily_data["precipitation_probability_max"] = (
+        daily_precipitation_probability_max
+    )
 
-		daily_data["sunrise"] = pd.to_datetime(daily_sunrise, unit = "s", utc = True).tz_convert(response.Timezone().decode())
-		daily_data["sunset"] = pd.to_datetime(daily_sunset, unit = "s", utc = True).tz_convert(response.Timezone().decode())
-		daily_data["temperature_2m_max"] = daily_temperature_2m_max
-		daily_data["temperature_2m_min"] = daily_temperature_2m_min
-		daily_data["precipitation_probability_max"] = daily_precipitation_probability_max
+    quote = fetch_quote()
 
-		quote = fetch_quote()
+    p.textln(create_formatted_date())
+    p.textln()
+    if quote:
+      p.textln(quote)
+      p.textln()
 
-		p.textln(create_formatted_date())
-		p.textln()
-		p.textln(quote)
-		p.textln()
-		p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
-		p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
-		p.text(f"Precipitation: {round(daily_data["precipitation_probability_max"][0])}%")
-		p.cut("PART")
+    high_temp = round(daily_data["temperature_2m_max"][0])
+    low_temp = round(daily_data["temperature_2m_min"][0])
+    sunrise_time = daily_data["sunrise"].strftime("%H:%M")[0]
+    sunset_time = daily_data["sunset"].strftime("%H:%M")[0]
+    precip = round(daily_data["precipitation_probability_max"][0])
 
-		fetch_comic()
-		p.image('comic.png')
-		p.cut()
+    p.textln(f"High: {high_temp}° Low: {low_temp}°")
+    p.textln(f"Sunrise: {sunrise_time} Sunset: {sunset_time}")
+    p.textln(f"Precipitation: {precip}%")
+    p.cut("PART")
 
-	finally:
-		p.close()
+    if fetch_comic():
+      p.image("comic.png")
+      p.cut()
+
+  finally:
+    p.close()
+
 
 def init_printer():
-	p = create_printer_object()
+  p = create_printer_object()
+  p.set_with_default(align="center")
+  p.close()
 
-	p.set_with_default(align="center")
-
-	p.close()
 
 init_printer()
 
 while True:
-	now = datetime.datetime.now()
-
-	if now.date() != last_printed and now.hour >= 6: # I understand that this is kinda a bad way to do it, but it works...
-		print_daily_paper()
-		last_printed = now.date()
-	time.sleep(60)
+  now = datetime.datetime.now()
+  if now.date() != last_printed and now.hour >= 6:
+    print_daily_paper()
+    last_printed = now.date()
+  time.sleep(60)
