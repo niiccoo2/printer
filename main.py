@@ -60,6 +60,24 @@ def fetch_quote():
 		print('Error:', e)
 		return None
 
+def fetch_comic():
+	url = 'https://xkcd.com/info.0.json'
+
+	try:
+		response = requests.get(url)
+
+		image_url = response.json()[0]["img"]
+	except Exception as e:
+		print('Error:', e)
+		return None
+
+	
+	img_data = requests.get(image_url).content
+	with open('comic.png', 'wb') as handler:
+		handler.write(img_data)
+
+	return True
+
 def print_daily_paper():
 	print("Printing daily paper!")
 
@@ -100,7 +118,12 @@ def print_daily_paper():
 		p.textln(f"High: {round(daily_data["temperature_2m_max"][0])}° Low: {round(daily_data["temperature_2m_min"][0])}°")
 		p.textln(f"Sunrise: {daily_data["sunrise"].strftime("%H:%M")[0]} Sunset: {daily_data["sunset"].strftime("%H:%M")[0]}")
 		p.text(f"Precipitation: {round(daily_data["precipitation_probability_max"][0])}%")
+		p.cut("PART")
+
+		fetch_comic()
+		p.image('comic.png')
 		p.cut()
+
 	finally:
 		p.close()
 
