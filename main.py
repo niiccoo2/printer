@@ -65,11 +65,12 @@ def fetch_comic():
 
 	try:
 		response = requests.get(url)
+		print(response)
 
-		image_url = response.json()[0]["img"]
+		image_url = response.json()["img"]
 		print(image_url)
 	except Exception as e:
-		print('Error:', e)
+		print('Error (with comic):', e)
 		return None
 
 	
