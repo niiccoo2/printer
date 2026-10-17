@@ -159,6 +159,7 @@ def print_daily_paper():
     )
 
     quote = fetch_quote()
+    comic = fetch_comic()
 
     p.textln(create_formatted_date())
     p.textln()
@@ -177,7 +178,7 @@ def print_daily_paper():
     p.textln(f"Precipitation: {precip}%")
     p.cut("PART")
 
-    if fetch_comic():
+    if fetch_comic:
       p.image("comic.png")
       p.cut()
 
